@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-950">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RescuNet - All-Age Disaster Response UI</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Prompt & Kanit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+            display: ['Kanit', 'sans-serif'],
+          },
+          colors: {
+            navy: {
+              800: '#0f172a',
+              900: '#090d16',
+              950: '#030712',
+            },
+            sos: {
+              red: '#dc2626',
+              bright: '#ef4444',
+              glow: 'rgba(239, 68, 68, 0.4)',
+            },
+            safe: {
+              green: '#16a34a',
+              bright: '#22c55e',
+              glow: 'rgba(34, 197, 94, 0.3)',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'radar-sweep': 'radar 4s linear infinite',
+          },
+          keyframes: {
+            radar: {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom High-Contrast & Touch Target Optimizations */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    body {
+      font-family: 'Prompt', sans-serif;
+      overflow-x: hidden;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .glass-card-danger {
+      background: rgba(127, 29, 29, 0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .glass-card-safe {
+      background: rgba(20, 83, 45, 0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .sos-button-glow {
+      box-shadow: 0 0 35px rgba(239, 68, 68, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.4);
+    }
+    /* Hide scrollbars for clean UI */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex items-center justify-center p-0 sm:p-4">
+
+  <!-- Mobile Device Outer Wrapper (Simulating Mobile Screen) -->
+  <div class="w-full max-w-md h-full sm:h-[880px] bg-slate-900 sm:rounded-[40px] shadow-2xl border-0 sm:border-8 border-slate-800 flex flex-col relative overflow-hidden">
+    
+    <!-- Top Status Bar & Network Indicator -->
+    <header class="bg-slate-950/80 backdrop-blur-md px-5 pt-4 pb-3 border-b border-slate-800/80 flex items-center justify-between z-30 shrink-0">
+      <!-- Mesh Network Status Indicator -->
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-3.5 w-3.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+        </span>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-nodes text-emerald-400 text-xs"></i>
+            <span class="text-xs font-bold text-slate-200 tracking-wide">MESH NETWORK</span>
+          </div>
+          <p class="text-[10px] text-slate-400 font-medium">ไร้เน็ต (28 เครื่องรอบตัว)</p>
+        </div>
+      </div>
+
+      <!-- Quick Accessibility Mode & Voice Toggle -->
+      <div class="flex items-center gap-2">
+        <button id="voice-btn" onclick="toggleVoiceAssistant()" class="bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition active:scale-95" title="สั่งด้วยเสียง (Voice Command)">
+          <i class="fa-solid fa-microphone text-sm text-indigo-400 animate-pulse"></i>
+          <span class="hidden xs:inline">เสียงสั่งการ</span>
+        </button>
+        <button id="contrast-toggle" onclick="toggleHighContrast()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs flex items-center gap-1 transition" title="ปรับขนาดตัวอักษร/ความชัด">
+          <i class="fa-solid fa-universal-access text-base"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN VIEWPORT CONTENT (Tab Views) -->
+    <main class="flex-1 overflow-y-auto no-scrollbar relative p-4 space-y-4">
+
+      <!-- ================= VIEW 1: HOME & EMERGENCY SOS ================= -->
+      <section id="view-home" class="space-y-4 transition-all duration-300">
+        
+        <!-- Top Disaster Warning Banner -->
+        <div class="glass-card-danger rounded-2xl p-3.5 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-red-600/80 flex items-center justify-center shrink-0 text-white text-lg">
+            <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-red-400 tracking-wider">เตือนภัยน้ำท่วมฉุกเฉิน</span>
+              <span class="text-[10px] bg-red-950 text-red-300 px-2 py-0.5 rounded-full border border-red-800">พื้นที่เสี่ยงสูง</span>
+            </div>
+            <p class="text-xs text-slate-200 truncate mt-0.5">พิกัดของคุณ: อ.เมือง จ.เชียงใหม่ (ระดับน้ำขึ้นสูง)</p>
+          </div>
+        </div>
+
+        <!-- MAIN SOS BUTTON AREA (Designed for elderly & children - Huge Touch Target) -->
+        <div class="py-4 flex flex-col items-center justify-center relative">
+          <!-- Outer Pulsing Rings -->
+          <div id="sos-pulse-ring" class="absolute w-64 h-64 rounded-full bg-red-600/10 border border-red-500/20 animate-pulse-slow pointer-events-none"></div>
+          
+          <button id="main-sos-btn" 
+            onmousedown="startSOSHold()" onmouseup="cancelSOSHold()" onmouseleave="cancelSOSHold()"
+            ontouchstart="startSOSHold()" ontouchend="cancelSOSHold()"
+            class="relative w-52 h-52 rounded-full bg-gradient-to-b from-red-500 to-red-700 sos-button-glow flex flex-col items-center justify-center border-4 border-red-300 text-white transition transform active:scale-95 group cursor-pointer z-10">
+            
+            <i class="fa-solid fa-hand-holding-medical text-5xl mb-2 group-hover:scale-110 transition"></i>
+            <span class="font-display text-3xl font-extrabold tracking-wider">ขอความช่วยเหลือ</span>
+            <span class="text-xs font-semibold text-red-100 bg-red-900/60 px-3 py-1 rounded-full mt-1 border border-red-400/30">
+              กดค้างไว้ 2 วินาที (SOS)
+            </span>
+
+            <!-- Progress Ring Loader overlay for hold gesture -->
+            <svg id="sos-progress-svg" class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none opacity-0 transition-opacity" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="#ffffff" stroke-width="6" stroke-dasharray="289" stroke-dashoffset="289" id="sos-progress-circle"/>
+            </svg>
+          </button>
+
+          <p class="text-xs text-slate-400 text-center mt-3 flex items-center gap-1.5">
+            <i class="fa-solid fa-wifi text-emerald-400"></i>
+            ส่งพิกัดผ่านวง Mesh อัตโนมัติแม้ไม่มีสัญญาณมือถือ
+          </p>
+        </div>
+
+        <!-- Quick Emergency Categories (Big Icons + Simple Text for Kids & Seniors) -->
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+            <span>แจ้งเหตุเร่งด่วนแบบระบุประเภท</span>
+            <span class="text-[10px] text-slate-500">กดแตะ 1 ครั้ง</span>
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            
+            <!-- Quick Category 1: Medical -->
+            <button onclick="triggerQuickAlert('เจ็บป่วย / บาดเจ็บ', 'medical')" class="glass-card hover:bg-slate-800/80 active:bg-slate-700 p-3.5 rounded-2xl flex items-center gap-3 border-l-4 border-l-red-500 transition text-left">
+              <div class="w-12 h-12 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-user-nurse"></i>
+              </div>
+              <div>
+                <span class="font-bold text-sm text-slate-100 block">เจ็บป่วย / บาดเจ็บ</span>
+                <span class="text-[11px] text-slate-400">ต้องการหมอ/ยา</span>
+              </div>
+            </button>
+
+            <!-- Quick Category 2: Trapped -->
+            <button onclick="triggerQuickAlert('ติดค้างในอาคาร/น้ำท่วม', 'trapped')" class="glass-card hover:bg-slate-800/80 active:bg-slate-700 p-3.5 rounded-2xl flex items-center gap-3 border-l-4 border-l-amber-500 transition text-left">
+              <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-house-flood-water"></i>
+              </div>
+              <div>
+                <span class="font-bold text-sm text-slate-100 block">ติดค้างในบ้าน</span>
+                <span class="text-[11px] text-slate-400">อพยพไม่ได้</span>
+              </div>
+            </button>
+
+            <!-- Quick Category 3: Food & Water -->
+            <button onclick="triggerQuickAlert('ขาดอาหารและน้ำดื่ม', 'supplies')" class="glass-card hover:bg-slate-800/80 active:bg-slate-700 p-3.5 rounded-2xl flex items-center gap-3 border-l-4 border-l-sky-500 transition text-left">
+              <div class="w-12 h-12 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-bottle-water"></i>
+              </div>
+              <div>
+                <span class="font-bold text-sm text-slate-100 block">ขาดอาหาร / น้ำ</span>
+                <span class="text-[11px] text-slate-400">ขอเสบียงยังชีพ</span>
+              </div>
+            </button>
+
+            <!-- Quick Category 4: Fire / Hazard -->
+            <button onclick="triggerQuickAlert('อัคคีภัย / ไฟรั่ว', 'fire')" class="glass-card hover:bg-slate-800/80 active:bg-slate-700 p-3.5 rounded-2xl flex items-center gap-3 border-l-4 border-l-orange-500 transition text-left">
+              <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+              </div>
+              <div>
+                <span class="font-bold text-sm text-slate-100 block">ไฟไหม้ / สารเคมี</span>
+                <span class="text-[11px] text-slate-400">อันตรายเร่งด่วน</span>
+              </div>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- Safe Status Quick Card -->
+        <div class="glass-card-safe rounded-2xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-full bg-emerald-500/30 text-emerald-400 flex items-center justify-center text-xl font-bold">
+              <i class="fa-solid fa-shield-cat"></i>
+            </div>
+            <div>
+              <p class="text-xs text-emerald-300 font-bold uppercase">สถานะของคุณตอนนี้</p>
+              <p class="text-sm font-semibold text-slate-100">ปลอดภัยดี (ยังไม่ต้องการกู้ภัย)</p>
+            </div>
+          </div>
+          <button onclick="markSafeStatus()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-2 rounded-xl shadow transition">
+            ยืนยันปลอดภัย
+          </button>
+        </div>
+
+      </section>
+
+
+      <!-- ================= VIEW 2: MESH RADAR MAP ================= -->
+      <section id="view-map" class="hidden space-y-3 transition-all duration-300">
+        
+        <!-- Radar Map Header & Controls -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-display font-bold text-lg text-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-radar text-emerald-400"></i> แผนที่เรดาร์กู้ภัย (Offline Mesh)
+            </h2>
+            <p class="text-xs text-slate-400">ระยะสัญญาณ P2P บลูทูธ/Wi-Fi Direct รอบตัว 1.5 กม.</p>
+          </div>
+          <div class="bg-slate-800 p-1 rounded-xl flex gap-1 text-xs">
+            <button onclick="setMapFilter('all')" id="filter-all" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg font-bold">ทั้งหมด</button>
+            <button onclick="setMapFilter('sos')" id="filter-sos" class="text-slate-400 hover:text-white px-2.5 py-1 rounded-lg font-bold">SOS</button>
+            <button onclick="setMapFilter('safe')" id="filter-safe" class="text-slate-400 hover:text-white px-2.5 py-1 rounded-lg font-bold">จุดปลอดภัย</button>
+          </div>
+        </div>
+
+        <!-- Interactive Canvas Radar Map -->
+        <div class="relative w-full h-80 rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner flex items-center justify-center">
+          
+          <!-- Canvas for drawing radar grid, nodes, and pulses -->
+          <canvas id="radarCanvas" class="w-full h-full block"></canvas>
+
+          <!-- Floating Radar Sweep Overlay -->
+          <div class="absolute inset-0 pointer-events-none border border-emerald-500/20 rounded-3xl"></div>
+
+          <!-- Radar Legend Floating Card -->
+          <div class="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur border border-slate-800 p-2.5 rounded-xl text-[11px] space-y-1 z-10 shadow-lg">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-ping"></span>
+              <span class="text-slate-200">ขอความช่วยเหลือ (SOS)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+              <span class="text-slate-200">จุดปลอดภัย / ศูนย์อพยพ</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span>
+              <span class="text-slate-200">ทีมกู้ภัย / อาสาสมัคร</span>
+            </div>
+          </div>
+
+          <!-- Compass indicator -->
+          <div class="absolute top-3 right-3 bg-slate-900/80 backdrop-blur w-9 h-9 rounded-full flex items-center justify-center border border-slate-800 text-xs font-bold text-slate-300">
+            N
+          </div>
+        </div>
+
+        <!-- Nearest Safe Zone & Rescue Team Cards -->
+        <div class="space-y-2">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">ศูนย์อพยพและจุดช่วยเหลือที่ใกล้ที่สุด</p>
+
+          <!-- Safe Zone Item 1 -->
+          <div class="glass-card p-3 rounded-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg font-bold shrink-0">
+                <i class="fa-solid fa-campground"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-xs text-slate-100">ศูนย์อพยพหอประชุมจังหวัด</h4>
+                <p class="text-[11px] text-slate-400">ห่างออกไป 450 เมตร • มีอาหาร/น้ำ/ปฐมพยาบาล</p>
+              </div>
+            </div>
+            <button onclick="navigatePoint('ศูนย์อพยพหอประชุม')" class="bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 px-2.5 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition">
+              นำทาง
+            </button>
+          </div>
+
+          <!-- Safe Zone Item 2 -->
+          <div class="glass-card p-3 rounded-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-lg font-bold shrink-0">
+                <i class="fa-solid fa-truck-medical"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-xs text-slate-100">ทีมกู้ภัยป่อเต็กตึ๊ง (จุด A-2)</h4>
+                <p class="text-[11px] text-slate-400">ห่างออกไป 800 เมตร • พร้อมเรือยางกู้ภัย</p>
+              </div>
+            </div>
+            <button onclick="navigatePoint('ทีมกู้ภัยจุด A-2')" class="bg-sky-600/30 border border-sky-500/40 text-sky-300 px-2.5 py-1.5 rounded-xl text-xs font-bold hover:bg-sky-600 hover:text-white transition">
+              นำทาง
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ================= VIEW 3: COMMAND & WALKIE TALKIE ================= -->
+      <section id="view-command" class="hidden space-y-4 transition-all duration-300">
+        
+        <div>
+          <h2 class="font-display font-bold text-lg text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-walkie-talkie text-sky-400"></i> วิทยุสื่อสาร & ศูนย์ประสานงาน
+          </h2>
+          <p class="text-xs text-slate-400">ช่องสื่อสารผ่านระบบ Mesh แบบไร้เน็ต (Offline Walkie-Talkie)</p>
+        </div>
+
+        <!-- Offline Walkie-Talkie Push-to-Talk Simulation -->
+        <div class="glass-card p-4 rounded-3xl text-center space-y-3 border-sky-500/30">
+          <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-radio text-sky-400"></i> ช่องสัญญาณ: <strong class="text-slate-200">CH-01 กู้ภัยเชียงใหม่</strong>
+            </span>
+            <span class="bg-sky-950 text-sky-400 px-2 py-0.5 rounded-full border border-sky-800 text-[10px]">P2P Connected</span>
+          </div>
+
+          <!-- PTT Button -->
+          <button id="ptt-btn" 
+            onmousedown="startPTT()" onmouseup="stopPTT()"
+            ontouchstart="startPTT()" ontouchend="stopPTT()"
+            class="w-32 h-32 mx-auto rounded-full bg-gradient-to-b from-sky-500 to-indigo-700 text-white font-display font-bold text-lg flex flex-col items-center justify-center shadow-lg shadow-sky-500/20 active:scale-95 transition border-4 border-sky-300 cursor-pointer">
+            <i class="fa-solid fa-microphone text-3xl mb-1"></i>
+            <span>กดค้างเพื่อพูด</span>
+          </button>
+          <p id="ptt-status" class="text-xs text-slate-400 font-medium">กดปุ่มค้างไว้เพื่อส่งเสียงไปยังเครื่องกู้ภัยรอบตัว</p>
+        </div>
+
+        <!-- Quick Emergency Speed Dials (Big Touch Buttons for Seniors) -->
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">เบอร์สายด่วนฉุกเฉิน (กดโทรออกทันที)</p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <a href="tel:1669" class="bg-slate-800 hover:bg-slate-700 p-3 rounded-2xl flex items-center gap-3 border border-slate-700">
+              <div class="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center text-lg font-extrabold shrink-0">
+                1669
+              </div>
+              <div>
+                <span class="font-bold text-xs text-slate-100 block">กู้ชีพ / การแพทย์</span>
+                <span class="text-[10px] text-slate-400">เจ็บป่วยฉุกเฉิน</span>
+              </div>
+            </a>
+
+            <a href="tel:1784" class="bg-slate-800 hover:bg-slate-700 p-3 rounded-2xl flex items-center gap-3 border border-slate-700">
+              <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center text-lg font-extrabold shrink-0">
+                1784
+              </div>
+              <div>
+                <span class="font-bold text-xs text-slate-100 block">สายด่วน ปภ.</span>
+                <span class="text-[10px] text-slate-400">เตือนภัยพิบัติ</span>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent Broadcast Messages Stream -->
+        <div class="space-y-2">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">ข้อความประกาศเตือนภัยล่าสุด (Mesh Broadcast)</p>
+          
+          <div class="space-y-2 text-xs">
+            <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1">
+              <div class="flex items-center justify-between text-slate-400">
+                <span class="font-bold text-red-400 flex items-center gap-1"><i class="fa-solid fa-bullhorn"></i> ศูนย์ภัยพิบัติจังหวัด</span>
+                <span class="text-[10px]">10 นาทีที่แล้ว</span>
+              </div>
+              <p class="text-slate-200">แจ้งอพยพผู้สูงอายุและเด็กขึ้นที่สูงในโซน อ.เมือง เนื่องจากน้ำแม่แตงเพิ่มระดับสูงขึ้นกระทันหัน</p>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-1">
+              <div class="flex items-center justify-between text-slate-400">
+                <span class="font-bold text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-truck-droplet"></i> จุดแจกน้ำดื่ม</span>
+                <span class="text-[10px]">25 นาทีที่แล้ว</span>
+              </div>
+              <p class="text-slate-200">เรือแจกเสบียงกำลังมุ่งหน้าไปทางซอย 4 ชุมชนวัดเกต สามารถโบกมือขอรับถุงยังชีพได้</p>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ================= VIEW 4: NEWS & SAFETY GUIDES ================= -->
+      <section id="view-news" class="hidden space-y-4 transition-all duration-300">
+        
+        <div>
+          <h2 class="font-display font-bold text-lg text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-book-medical text-emerald-400"></i> คู่มือรับมือภัยพิบัติ (ออฟไลน์)
+          </h2>
+          <p class="text-xs text-slate-400">วิธีปฏิบัติตัวและปฐมพยาบาลเบื้องต้น (อ่านได้โดยไม่ต้องมีเน็ต)</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3">
+          
+          <!-- Guide 1: Flood -->
+          <div onclick="openGuideModal('วิธีรับมือน้ำท่วมฉุกเฉิน', '1. ตัดสะพานไฟภายในบ้านทันที\n2. ขนย้ายสิ่งของขึ้นชั้น 2 หรือที่สูง\n3. ห้ามเดินลุยน้ำใกล้ปลั๊กไฟหรือเสาไฟ\n4. เตรียมกระเป๋ายังชีพและนกหวีดไว้ใกล้ตัว')" class="glass-card hover:bg-slate-800 p-3.5 rounded-2xl flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-water"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">วิธีปฏิบัติตัวเมื่อน้ำท่วมพลัน</h3>
+                <p class="text-xs text-slate-400">ข้อควรระวังเรื่องไฟฟ้าดับและโรคมากับน้ำ</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-500"></i>
+          </div>
+
+          <!-- Guide 2: CPR & First Aid -->
+          <div onclick="openGuideModal('การปฐมพยาบาลเบื้องต้น & CPR', '1. ตรวจสอบสติและการหายใจของผู้ป่วย\n2. หากหยุดหายใจ ให้กดหน้าอกบริเวณกลางอก ลึก 5 ซม. จังหวะ 100-120 ครั้ง/นาที\n3. ห้ามเคลื่อนย้ายผู้ป่วยกระดูกหักโดยไม่มีการดาม\n4. ห้ามให้อาหารหรือน้ำแก่คนหมดสติ')" class="glass-card hover:bg-slate-800 p-3.5 rounded-2xl flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-heart-pulse"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">การปฐมพยาบาล &amp; CPR</h3>
+                <p class="text-xs text-slate-400">ขั้นตอนช่วยชีวิตคนจมน้ำ / หมดสติ</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-500"></i>
+          </div>
+
+          <!-- Guide 3: Survival Kit List -->
+          <div onclick="openGuideModal('จัดกระเป๋ายังชีพฉุกเฉิน (72 ชม.)', 'สิ่งจำเป็นในกระเป๋า 72 ชั่วโมง:\n• น้ำดื่ม 3 ลิตร/คน\n• อาหารแห้ง/ยาสมัยประจำตัว\n• ไฟฉาย + ถ่านสำรอง\n• นกหวีดสำหรับเป่าส่งสัญญาณ\n• ยาทาแผล/พลาสเตอร์/แอลกอฮอล์\n• เอกสารสำคัญใส่ถุงกันน้ำ')" class="glass-card hover:bg-slate-800 p-3.5 rounded-2xl flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl shrink-0">
+                <i class="fa-solid fa-kit-medical"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">เช็กลิสต์กระเป๋ายังชีพ 72 ชม.</h3>
+                <p class="text-xs text-slate-400">รายการสิ่งของจำเป็นที่ต้องเตรียมพร้อม</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-500"></i>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- VOICE ASSISTANT OVERLAY (MODAL) -->
+    <div id="voice-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+      <div class="w-28 h-28 rounded-full bg-indigo-600/30 border-2 border-indigo-400 flex items-center justify-center text-indigo-300 text-5xl mb-6 animate-pulse">
+        <i class="fa-solid fa-microphone"></i>
+      </div>
+      <h3 class="font-display font-bold text-2xl text-white mb-2">กำลังฟังเสียงคำสั่ง...</h3>
+      <p class="text-sm text-indigo-200 max-width-xs mb-6">ลองพูดว่า: <br><span class="text-white font-bold">"ช่วยด้วย"</span>, <span class="text-white font-bold">"หาน้ำดื่ม"</span> หรือ <span class="text-white font-bold">"ศูนย์อพยพอยู่ที่ไหน"</span></p>
+      
+      <div class="flex gap-3">
+        <button onclick="simulateVoiceCommand('ช่วยด้วย! ติดค้างอยู่ในบ้าน')" class="bg-red-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl">
+          ลองพูด: "ช่วยด้วย"
+        </button>
+        <button onclick="toggleVoiceAssistant()" class="bg-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl">
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+
+    <!-- GENERAL ALERT / CONFIRM MODAL -->
+    <div id="alert-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="glass-card max-w-xs w-full p-5 rounded-3xl text-center space-y-4 border-red-500/50 shadow-2xl">
+        <div id="alert-icon" class="w-16 h-16 rounded-full bg-red-600/20 text-red-500 flex items-center justify-center text-3xl mx-auto">
+          <i class="fa-solid fa-bell"></i>
+        </div>
+        <div>
+          <h3 id="alert-title" class="font-display font-bold text-lg text-white">ส่งสัญญาณ SOS เรียบร้อย</h3>
+          <p id="alert-desc" class="text-xs text-slate-300 mt-1">พิกัดของคุณถูกกระจายไปยังทีมกู้ภัยรอบข้างผ่าน Mesh Network แล้ว</p>
+        </div>
+        <button onclick="closeAlertModal()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-2xl text-sm transition">
+          ตกลง / ย้อนกลับ
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION BAR (All-Age Touch Friendly) -->
+    <nav class="bg-slate-950/95 border-t border-slate-800/80 px-2 py-2 grid grid-cols-4 gap-1 shrink-0 z-30">
+      
+      <!-- Nav Item 1: Home / SOS -->
+      <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-red-500 transition">
+        <i class="fa-solid fa-house-medical text-xl mb-1"></i>
+        <span class="text-[11px] font-bold">SOS ขอช่วย</span>
+      </button>
+
+      <!-- Nav Item 2: Map Radar -->
+      <button onclick="switchTab('map')" id="nav-map" class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-map-location-dot text-xl mb-1"></i>
+        <span class="text-[11px] font-bold">แผนที่เรดาร์</span>
+      </button>
+
+      <!-- Nav Item 3: Command & Talk -->
+      <button onclick="switchTab('command')" id="nav-command" class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-walkie-talkie text-xl mb-1"></i>
+        <span class="text-[11px] font-bold">วิทยุกู้ภัย</span>
+      </button>
+
+      <!-- Nav Item 4: Offline Guides -->
+      <button onclick="switchTab('news')" id="nav-news" class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-slate-400 hover:text-slate-200 transition">
+        <i class="fa-solid fa-book-medical text-xl mb-1"></i>
+        <span class="text-[11px] font-bold">คู่มือปลอดภัย</span>
+      </button>
+
+    </nav>
+
+  </div>
+
+  <!-- JAVASCRIPT APP LOGIC & INTERACTION -->
+  <script>
+    // State Variables
+    let currentTab = 'home';
+    let sosHoldTimer = null;
+    let holdProgress = 0;
+    let isHighContrast = false;
+    let activeMapFilter = 'all';
+
+    // Canvas Radar Logic
+    let radarCanvas, ctx;
+    let radarAngle = 0;
+    const meshNodes = [
+      { x: 0.2, y: -0.3, type: 'sos', label: 'SOS 1 (150m)' },
+      { x: -0.4, y: 0.4, type: 'safe', label: 'ศูนย์อพยพ (450m)' },
+      { x: 0.5, y: 0.3, type: 'rescue', label: 'กู้ภัย A-2 (800m)' },
+      { x: -0.2, y: -0.5, type: 'safe', label: 'จุดแจกเสบียง' },
+    ];
+
+    window.onload = function() {
+      initRadarCanvas();
+      animateRadar();
+    };
+
+    // Navigation Tab Switcher
+    function switchTab(tabId) {
+      currentTab = tabId;
+      const tabs = ['home', 'map', 'command', 'news'];
+      
+      tabs.forEach(t => {
+        const viewEl = document.getElementById(`view-${t}`);
+        const navEl = document.getElementById(`nav-${t}`);
+        
+        if (t === tabId) {
+          viewEl.classList.remove('hidden');
+          navEl.classList.remove('text-slate-400');
+          navEl.classList.add('text-red-500', 'bg-slate-900/80');
+        } else {
+          viewEl.classList.add('hidden');
+          navEl.classList.remove('text-red-500', 'bg-slate-900/80');
+          navEl.classList.add('text-slate-400');
+        }
+      });
+
+      if (tabId === 'map') {
+        setTimeout(initRadarCanvas, 100);
+      }
+    }
+
+    // SOS Press & Hold Logic (Prevents accidental trigger for kids/elderly)
+    function startSOSHold() {
+      const circle = document.getElementById('sos-progress-circle');
+      const svg = document.getElementById('sos-progress-svg');
+      svg.classList.remove('opacity-0');
+      
+      let step = 0;
+      const totalSteps = 20; // 2 seconds
+      
+      sosHoldTimer = setInterval(() => {
+        step++;
+        const offset = 289 - (289 * (step / totalSteps));
+        circle.style.strokeDashoffset = offset;
+        
+        if (step >= totalSteps) {
+          clearInterval(sosHoldTimer);
+          triggerSOS();
+          resetSOSProgress();
+        }
+      }, 100);
+    }
+
+    function cancelSOSHold() {
+      if (sosHoldTimer) {
+        clearInterval(sosHoldTimer);
+        sosHoldTimer = null;
+      }
+      resetSOSProgress();
+    }
+
+    function resetSOSProgress() {
+      const circle = document.getElementById('sos-progress-circle');
+      const svg = document.getElementById('sos-progress-svg');
+      circle.style.strokeDashoffset = 289;
+      svg.classList.add('opacity-0');
+    }
+
+    function triggerSOS() {
+      showAlertModal(
+        'fa-solid fa-triangle-exclamation',
+        'ส่งสัญญาณ SOS ฉุกเฉินแล้ว!',
+        'ระบบ RescuNet ได้ส่งพิกัดตำแหน่งของคุณไปยังทีมกู้ภัยและอุปกรณ์รอบข้างผ่าน Mesh Network เรียบร้อยแล้ว โปรดอยู่ในที่ปลอดภัย'
+      );
+    }
+
+    function triggerQuickAlert(title, type) {
+      showAlertModal(
+        'fa-solid fa-paper-plane',
+        `ส่งคำขอ: ${title}`,
+        'ข้อมูลพิกัดและประเภทความช่วยเหลือถูกส่งเข้าระบบ Mesh Network เรียบร้อยแล้ว ทีมกู้ภัยใกล้เคียงกำลังรับทราบคำขอ'
+      );
+    }
+
+    function markSafeStatus() {
+      showAlertModal(
+        'fa-solid fa-shield-check',
+        'อัปเดตสถานะ: ปลอดภัยดี',
+        'ระบบได้บันทึกว่าคุณปลอดภัยแล้ว ข้อมูลนี้ช่วยให้ทีมกู้ภัยมุ่งเป้าไปช่วยเหลือผู้ที่เดือดร้อนเร่งด่วนก่อน'
+      );
+    }
+
+    // Modal Handlers
+    function showAlertModal(iconClass, title, desc) {
+      document.getElementById('alert-icon').innerHTML = `<i class="${iconClass}"></i>`;
+      document.getElementById('alert-title').innerText = title;
+      document.getElementById('alert-desc').innerText = desc;
+      document.getElementById('alert-modal').classList.remove('hidden');
+    }
+
+    function closeAlertModal() {
+      document.getElementById('alert-modal').classList.add('hidden');
+    }
+
+    function openGuideModal(title, text) {
+      showAlertModal('fa-solid fa-book-open', title, text);
+    }
+
+    // Accessibility High Contrast / Font Size Toggle
+    function toggleHighContrast() {
+      isHighContrast = !isHighContrast;
+      if (isHighContrast) {
+        document.body.classList.add('text-lg');
+        document.getElementById('contrast-toggle').classList.add('bg-indigo-600', 'text-white');
+      } else {
+        document.body.classList.remove('text-lg');
+        document.getElementById('contrast-toggle').classList.remove('bg-indigo-600', 'text-white');
+      }
+    }
+
+    // Voice Assistant Overlay Toggle
+    function toggleVoiceAssistant() {
+      const modal = document.getElementById('voice-modal');
+      modal.classList.toggle('hidden');
+    }
+
+    function simulateVoiceCommand(commandText) {
+      toggleVoiceAssistant();
+      showAlertModal(
+        'fa-solid fa-microphone',
+        `รับคำสั่งเสียง: "${commandText}"`,
+        'ระบบประมวลผลคำสั่งเสียงออฟไลน์เรียบร้อย กำลังดำเนินการให้ทันที'
+      );
+    }
+
+    // PTT Walkie Talkie Simulation
+    function startPTT() {
+      const btn = document.getElementById('ptt-btn');
+      const status = document.getElementById('ptt-status');
+      btn.classList.add('from-red-600', 'to-red-800', 'scale-105');
+      status.innerText = "กำลังส่งสัญญาณเสียง... (ปล่อยปุ่มเพื่อจบคำพูด)";
+      status.classList.add('text-red-400', 'font-bold');
+    }
+
+    function stopPTT() {
+      const btn = document.getElementById('ptt-btn');
+      const status = document.getElementById('ptt-status');
+      btn.classList.remove('from-red-600', 'to-red-800', 'scale-105');
+      status.innerText = "กดปุ่มค้างไว้เพื่อส่งเสียงไปยังเครื่องกู้ภัยรอบตัว";
+      status.classList.remove('text-red-400', 'font-bold');
+    }
+
+    // Radar Canvas Implementation
+    function initRadarCanvas() {
+      radarCanvas = document.getElementById('radarCanvas');
+      if (!radarCanvas) return;
+      ctx = radarCanvas.getContext('2d');
+      
+      const rect = radarCanvas.getBoundingClientRect();
+      radarCanvas.width = rect.width;
+      radarCanvas.height = rect.height;
+    }
+
+    function animateRadar() {
+      if (ctx && radarCanvas) {
+        drawRadarScreen();
+      }
+      requestAnimationFrame(animateRadar);
+    }
+
+    function drawRadarScreen() {
+      const w = radarCanvas.width;
+      const h = radarCanvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = Math.min(w, h) * 0.42;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Background Grid Circles
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.2)';
+      ctx.lineWidth = 1;
+
+      for (let r = 1; r <= 3; r++) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, (radius / 3) * r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Crosshairs
+      ctx.beginPath();
+      ctx.moveTo(cx - radius, cy);
+      ctx.lineTo(cx + radius, cy);
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx, cy + radius);
+      ctx.stroke();
+
+      // Radar Sweep Line
+      radarAngle += 0.02;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(radarAngle);
+
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+      grad.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+      grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, 0, Math.PI / 4);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+
+      // Center Self Marker
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw Nodes
+      meshNodes.forEach(node => {
+        if (activeMapFilter !== 'all' && node.type !== activeMapFilter) return;
+
+        const nx = cx + node.x * radius * 1.8;
+        const ny = cy + node.y * radius * 1.8;
+
+        ctx.beginPath();
+        ctx.arc(nx, ny, 6, 0, Math.PI * 2);
+
+        if (node.type === 'sos') ctx.fillStyle = '#ef4444';
+        else if (node.type === 'safe') ctx.fillStyle = '#22c55e';
+        else ctx.fillStyle = '#38bdf8';
+
+        ctx.fill();
+
+        // Node Pulsing Ring
+        ctx.beginPath();
+        ctx.arc(nx, ny, 10, 0, Math.PI * 2);
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Node Label
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '10px Prompt';
+        ctx.fillText(node.label, nx + 10, ny + 3);
+      });
+    }
+
+    function setMapFilter(filter) {
+      activeMapFilter = filter;
+      ['all', 'sos', 'safe'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (f === filter) {
+          btn.className = 'bg-indigo-600 text-white px-2.5 py-1 rounded-lg font-bold';
+        } else {
+          btn.className = 'text-slate-400 hover:text-white px-2.5 py-1 rounded-lg font-bold';
+        }
+      });
+    }
+
+    function navigatePoint(pointName) {
+      showAlertModal(
+        'fa-solid fa-compass',
+        `กำลังนำทางไปยัง: ${pointName}`,
+        'เข็มทิศเรดาร์แบบออฟไลน์เปิดทำงานแล้ว ให้เดินตามทิศทางศรชี้บนแผนที่'
+      );
+    }
+  </script>
+</body>
+</html>
